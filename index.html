@@ -21,6 +21,10 @@ const CAR_ACCEL=0.18, MAX_SPEED=9, STEER=0.05, DRAG=0.99;
 const PED_SPEED=2.4;
 const VIEW=1200;
 
+// AI textures (ComfyUI) — served from /assets
+const TEX={}; ['road','side','grass','roof','dirt','car'].forEach(k=>{const i=new Image();i.onload=()=>{};i.src='assets/'+k+'.png';TEX[k]=i;});
+const texImg=k=>TEX[k]&&TEX[k].complete&&TEX[k].naturalWidth?TEX[k]:null;
+
 // ---- world ----
 const g=[]; // grid
 function gen(){
@@ -238,15 +242,16 @@ function render(){
   const x0=Math.max(0,Math.floor(camX/T)), x1=Math.min(W,Math.ceil((camX+innerWidth)/T));
   const y0=Math.max(0,Math.floor(camY/T)), y1=Math.min(H,Math.ceil((camY+innerHeight)/T));
   for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
-    const c=g[y][x];
-    if(c===ROAD){ctx.fillStyle='#444';}
-    else if(c===BUILD){ctx.fillStyle='#7a5a3a';}
-    else if(c===PARK){ctx.fillStyle='#4a7a2a';}
-    else {ctx.fillStyle='#a99';}
-    ctx.fillRect(x*T,y*T,T,T);
-    if(c===BUILD){ctx.fillStyle='#0006';ctx.fillRect(x*T,y*T,T,4);ctx.fillRect(x*T,y*T,4,T);}
-    if(c===PARK){ctx.fillStyle='#3a6a20';ctx.fillRect(x*T+10,y*T+10,T-20,T-20);}
-    if(c===ROAD){ ctx.fillStyle='#d8d83a'; if(x%6===0)ctx.fillRect(x*T+2,y*T,T-4,3); if(y%6===0)ctx.fillRect(x*T,y*T+2,T,3);}
+    const c=g[y][x], px=x*T, py=y*T;
+    // draw AI texture via a sliding window for continuity
+    const drawT=k=>{const im=texImg(k),S=im.naturalWidth;ctx.drawImage(im,(px%S),(py%S),T,T,px,py,T,T);};
+    if(c===ROAD){ if(texImg('road'))drawT('road'); else {ctx.fillStyle='#444';ctx.fillRect(px,py,T,T);} }
+    else if(c===BUILD){ if(texImg('roof'))drawT('roof'); else {ctx.fillStyle='#7a5a3a';ctx.fillRect(px,py,T,T);} }
+    else if(c===PARK){ if(texImg('grass'))drawT('grass'); else {ctx.fillStyle='#4a7a2a';ctx.fillRect(px,py,T,T);} }
+    else { if(texImg('side'))drawT('side'); else {ctx.fillStyle='#a99';ctx.fillRect(px,py,T,T);} }
+    if(c===BUILD){ctx.fillStyle='#0006';ctx.fillRect(px,py,T,4);ctx.fillRect(px,py,4,T);}
+    if(c===PARK){ctx.fillStyle='#3a6a2088';ctx.fillRect(px+10,py+10,T-20,T-20);}
+    if(c===ROAD){ ctx.fillStyle='#d8d83a'; if(x%6===0)ctx.fillRect(px+2,py,T-4,3); if(y%6===0)ctx.fillRect(px,py+2,T,3);}
   }
   // peds
   for(const p of peds){ ctx.fillStyle='#0af';ctx.beginPath();ctx.arc(p.x,p.y,4,0,7);ctx.fill(); }
@@ -268,7 +273,9 @@ function drawCar(c){
   ctx.save();
   ctx.translate(c.x,c.y); ctx.rotate(c.angle);
   ctx.fillStyle=c.color; ctx.fillRect(-11,-6,22,12);
-  ctx.fillStyle='#222'; ctx.fillRect(2,-5,6,10); // windshield hint
+  const im=texImg('car');
+  if(im) ctx.drawImage(im,-26,-14,52,28); // AI car texture over body
+  else {ctx.fillStyle='#222'; ctx.fillRect(2,-5,6,10);}
   ctx.restore();
 }
 let prevE=false;
